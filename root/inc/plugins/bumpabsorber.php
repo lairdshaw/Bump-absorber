@@ -34,8 +34,10 @@ const c_ba_patches = array(
 	),
 	array(
 		'file' => 'inc/plugins/dvz_stream/streams/posts.php',
-		'from' => '                " . $queryWhere . "',
-		'to'   => '                " . $queryWhere . " AND p.dateline <= t.lastpost'
+		'from' => '                " . $queryWhere . "
+            ORDER BY p.pid DESC',
+		'to'   => '                " . $queryWhere . " AND p.dateline <= t.lastpost
+            ORDER BY p.pid DESC'
 	),
 );
 
