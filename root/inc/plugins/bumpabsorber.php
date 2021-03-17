@@ -51,7 +51,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.1',
+		'version'       => '0.0.2',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -155,6 +155,8 @@ function bumpabsorber_is_installed() {
 	return $db->fetch_field($query, 'gid') ? true : false;
 }
 
+// Store the lastpost data for the thread/forum in a global variable if
+// necessary, so that we can restore it when the post datahandler updates it.
 function bumpabsorber_hooking__datahandler_post_validate_post($postHandler) {
 	global $g_ba_last_arr, $mybb, $db, $plugins;
 
@@ -315,7 +317,7 @@ function bumpabsorber_hookin__datahandler_post_insert_post_end($postHandler) {
 				$db->update_query('threads', array('closed' => 1), "tid='{$thread['tid']}'");
 				$postHandler->return_values['closed'] = 1;
 			} else if (empty($modoptions['closethread']) && $thread['closed'] == 1) {
-				// We don't allow threads to be closed by their
+				// We don't allow threads to be opened by their
 				// authors for the reason explained above
 				// bumpabsorber_hookin__newthread_end()
 // 				log_moderator_action($modlogdata, $lang->thread_opened);
@@ -380,6 +382,7 @@ function bumpabsorber_hookin__moderation_start() {
 
 	if ($mybb->get_input('action') == 'ba_close_own_thread') {
 		$lang->load('moderation');
+		$lang->load('bumpabsorber');
 
 		$tid = $mybb->get_input('tid', MyBB::INPUT_INT);
 
@@ -392,10 +395,10 @@ function bumpabsorber_hookin__moderation_start() {
 		      in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
 		     )
 		   ) {
-			error('You do not have the right to close threads in this forum.', $lang->error);
+			error($lang->bmp_err_no_close_right_in_forum, $lang->error);
 		}
 		if ($mybb->user['uid'] != $thread['uid']) {
-			error('You may not close this thread as you are not its author.', $lang->error);
+			error($lang->bmp_err_no_close_right_not_author, $lang->error);
 		}
 
 		$modlogdata['tid'] = $tid;
@@ -410,7 +413,7 @@ function bumpabsorber_hookin__moderation_start() {
 			// Do not allow thread authors to open their closed
 			// threads for the reason stated above
 			// bumpabsorber_hookin__showthread_end()
-			error('You may not open your thread. Please contact a moderator to do so on your behalf.');
+			error($lang->bmp_err_thread_already_closed);
 // 			$openclose = $lang->opened;
 // 			$redirect = $lang->redirect_openthread;
 // 			$moderation->open_threads($tid);
@@ -458,19 +461,6 @@ function ba_realise_or_revert_patches($ids, $revert = false) {
 	return $unwritable_files;
 }
 
-function ba_get_missing_patch_files() {
-	$files = array();
-	$ids = ba_get_missing_patch_ids();
-	foreach ($ids as $id) {
-		$entry = c_ba_patches[$id];
-		if (!isset($files[$entry['file']]) && file_exists(MYBB_ROOT.$entry['file'])) {
-			$files[$entry['file']] = (is_writable(MYBB_ROOT.$entry['file']));
-		}
-	}
-
-	return $files;
-}
-
 function ba_replace_in_file($file, $from, $to) {
 	$contents = file_get_contents($file);
 	$contents_new = str_replace($from, $to, $contents);
@@ -480,6 +470,9 @@ function ba_replace_in_file($file, $from, $to) {
 function ba_get_missing_patch_ids() {
 	$ret = array();
 	foreach (c_ba_patches as $idx => $entry) {
+		if (!file_exists(MYBB_ROOT.$entry['file'])) {
+			continue;
+		}
 		$contents = file_get_contents(MYBB_ROOT.$entry['file']);
 		if (strpos($contents, $entry['to']) === false) {
 			$ret[] = $idx;
