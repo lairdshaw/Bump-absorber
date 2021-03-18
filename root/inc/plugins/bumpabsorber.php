@@ -458,7 +458,7 @@ function ba_realise_or_revert_patches($ids, $revert = false) {
 		}
 	}
 
-	return $unwritable_files;
+	return array_unique($unwritable_files);
 }
 
 function ba_replace_in_file($file, $from, $to) {
