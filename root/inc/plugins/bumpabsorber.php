@@ -51,7 +51,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.2',
+		'version'       => '0.0.3',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -181,7 +181,6 @@ function bumpabsorber_hooking__datahandler_post_validate_post($postHandler) {
 			'forum_lastposttid'      => $forum ['lastposttid'    ],
 			'forum_lastpostsubject'  => $forum ['lastpostsubject'],
 		);
-		$plugins->remove_hook('datahandler_post_insert_post', 'myalertsrow_subscribed');
 	}
 }
 
