@@ -39,6 +39,31 @@ const c_ba_patches = array(
 		'to'   => '                " . $queryWhere . " AND p.dateline <= t.lastpost
             ORDER BY p.pid DESC'
 	),
+	array(
+		'file' => 'xmlhttp.php',
+		'from' => "		if(\$thread['closed'] == 1)",
+		'to'   => "		if(\$thread['closed'] == 1 && !(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])))"
+	),
+	array(
+		'file' => 'editpost.php',
+		'from' => "	if(!is_moderator(\$fid, \"caneditposts\"))
+	{
+		if(\$thread['closed'] == 1)",
+		'to'   => "	if(!is_moderator(\$fid, \"caneditposts\"))
+	{
+		if(\$thread['closed'] == 1 && !(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])))"
+	),
+	array(
+		'file' => 'inc/functions_post.php',
+		'from' => "\$thread['closed'] != 1 && ",
+		'to'   => "(\$thread['closed'] != 1 || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])) && ",
+	),
+	array(
+		'file' => 'inc/datahandlers/post.php',
+		'from' => "					\$modoptions_update['closed'] = \$closed = 0;",
+		'to'   => "					\$modoptions_update['closed'] = \$closed = 0;
+					\$modoptions_update['ba_closed_by_author'] = 0;",
+	),
 );
 
 function bumpabsorber_info() {
@@ -51,7 +76,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.3',
+		'version'       => '0.0.4',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -130,6 +155,10 @@ function bumpabsorber_install() {
 	}
 
 	rebuild_settings();
+
+	if (!$db->field_exists('ba_closed_by_author', 'threads')) {
+		$db->add_column('threads', 'ba_closed_by_author', 'tinyint(1) NOT NULL DEFAULT 0');
+	}
 }
 
 function bumpabsorber_uninstall() {
@@ -145,6 +174,10 @@ function bumpabsorber_uninstall() {
 	if ($rebuild_settings) rebuild_settings();
 
 	ba_revert_patches();
+
+	if ($db->field_exists('ba_closed_by_author', 'threads')) {
+		$db->drop_column('threads', 'ba_closed_by_author');
+	}
 }
 
 function bumpabsorber_is_installed() {
@@ -275,10 +308,9 @@ function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
 		$modlogdata['fid'] = $thread['fid'];
 		$modlogdata['tid'] = $postHandler->tid;
 		log_moderator_action($modlogdata, $lang->thread_closed);
-		$db->update_query('threads', array('closed' => 1), "tid='{$postHandler->tid}'");
+		$db->update_query('threads', array('closed' => 1, 'ba_closed_by_author' => 1), "tid='{$postHandler->tid}'");
 	}
 }
-
 
 // Process the "Close Thread" checkbox, on reply to a thread by its author in a
 // forum applicable to this plugin, by closing the thread, but only if this
@@ -313,7 +345,7 @@ function bumpabsorber_hookin__datahandler_post_insert_post_end($postHandler) {
 
 			if (!empty($modoptions['closethread']) && $thread['closed'] != 1) {
 				log_moderator_action($modlogdata, $lang->thread_closed);
-				$db->update_query('threads', array('closed' => 1), "tid='{$thread['tid']}'");
+				$db->update_query('threads', array('closed' => 1, 'ba_closed_by_author' => 1), "tid='{$thread['tid']}'");
 				$postHandler->return_values['closed'] = 1;
 			} else if (empty($modoptions['closethread']) && $thread['closed'] == 1) {
 				// We don't allow threads to be opened by their
@@ -419,7 +451,7 @@ function bumpabsorber_hookin__moderation_start() {
 		} else {
 			$openclose = $lang->closed;
 			$redirect = $lang->redirect_closethread;
-			$moderation->close_threads($tid);
+			$db->update_query('threads', array('closed' => 1, 'ba_closed_by_author' => 1), "tid='{$tid}'");
 		}
 		$lang->mod_process = $lang->sprintf($lang->mod_process, $openclose);
 
@@ -479,4 +511,14 @@ function ba_get_missing_patch_ids() {
 	}
 
 	return $ret;
+}
+
+function ba_can_edit_thread($thread, $uid = -1) {
+	global $mybb;
+
+	if ($uid == -1) {
+		$uid = $mybb->user['uid'];
+	}
+
+	return $thread['ba_closed_by_author'] == 1 && $uid == $thread['uid'] && ($mybb->settings['bumpabsorber_forums'] == -1 || in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums'])));
 }
