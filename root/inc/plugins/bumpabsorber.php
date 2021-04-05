@@ -20,6 +20,7 @@ if (!defined('IN_ADMINCP')) {
 const c_ba_patches = array(
 	array(
 		'file' => 'inc/plugins/dvz_stream/streams/posts.php',
+		'might_not_exist' => true,
 		'from' => "    if (in_array('thread', \dvzStream\getCsvSettingValues('group_events_by'))) {",
 		'to'   => "    if (in_array('thread', \dvzStream\getCsvSettingValues('group_events_by'))) {
         if (\$mybb->settings['bumpabsorber_forums'] == -1) {
@@ -32,11 +33,13 @@ const c_ba_patches = array(
 	),
 	array(
 		'file' => 'inc/plugins/dvz_stream/streams/posts.php',
+		'might_not_exist' => true,
 		'from' => '                " . $queryWhere . " AND p2.pid IS NULL',
 		'to'   => '                " . $queryWhere . " AND (" . $baWhere . ")',
 	),
 	array(
 		'file' => 'inc/plugins/dvz_stream/streams/posts.php',
+		'might_not_exist' => true,
 		'from' => '                " . $queryWhere . "
             ORDER BY p.pid DESC',
 		'to'   => '                " . $queryWhere . " AND p.dateline <= t.lastpost
@@ -89,7 +92,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.6',
+		'version'       => '0.0.7',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -100,10 +103,17 @@ function bumpabsorber_info() {
 	$active_plugins = $plugins_cache['active'];
 	$list_items = '';
 	if ($active_plugins && $active_plugins['bumpabsorber']) {
-		$unwritable_files = ba_realise_missing_patches();
+		list($unwritable_files, $fpcfalse_files, $failedpatch_files) = ba_realise_missing_patches();
 		if ($unwritable_files) {
 			$info['description'] .= '<ul><li style="list-style-image: url(styles/default/images/icons/warning.png)"><span style="color: red;">'.$lang->sprintf($lang->bmp_unwritable, implode($lang->comma, $unwritable_files)).'</span></li></ul>'.PHP_EOL;
-		} else {
+		}
+		if ($fpcfalse_files) {
+			$info['description'] .= '<ul><li style="list-style-image: url(styles/default/images/icons/warning.png)"><span style="color: red;">'.$lang->sprintf($lang->bmp_fpcfalse, implode($lang->comma, $fpcfalse_files)).'</span></li></ul>'.PHP_EOL;
+		}
+		if ($failedpatch_files) {
+			$info['description'] .= '<ul><li style="list-style-image: url(styles/default/images/icons/warning.png)"><span style="color: red;">'.$lang->sprintf($lang->bmp_unpatchable, implode($lang->comma, $failedpatch_files)).'</span></li></ul>'.PHP_EOL;
+		}
+		if (!$unwritable_files && !$fpcfalse_files && !$failedpatch_files) {
 			$patched_files = array();
 			foreach (c_ba_patches as $patch) {
 				if (!in_array($patch['file'], $patched_files)) {
@@ -484,7 +494,9 @@ function ba_realise_missing_patches() {
 }
 
 function ba_realise_or_revert_patches($ids, $revert = false) {
-	$unwritable_files = array();
+	$unwritable_files  = array();
+	$fpcfalse_files    = array();
+	$failedpatch_files = array();
 	foreach ($ids as $id) {
 		if (!file_exists(MYBB_ROOT.$entry['file'])) {
 			continue;
@@ -497,23 +509,37 @@ function ba_realise_or_revert_patches($ids, $revert = false) {
 		} else {
 			$from = $entry[$revert ? 'to'   : 'from'];
 			$to   = $entry[$revert ? 'from' : 'to'  ];
-			ba_replace_in_file(MYBB_ROOT.$entry['file'], $from, $to);
+			$res = ba_replace_in_file(MYBB_ROOT.$entry['file'], $from, $to);
+			if ($res === false) {
+				$fpcfalse_files[] = $entry['file'];
+			} else if ($res === -1) {
+				$failedpatch_files[] = $entry['file'];
+			}
 		}
 	}
 
-	return array_unique($unwritable_files);
+	return array(array_unique($unwritable_files), array_unique($fpcfalse_files), array_unique($failedpatch_files));
 }
 
+// Returns:
+// true if the patch succeeded.
+// false if the patch failed due to file_put_contents() returning false
+// -1 if the patch seemed to succeed but was not present in the file upon checking for it
 function ba_replace_in_file($file, $from, $to) {
 	$contents = file_get_contents($file);
 	$contents_new = str_replace($from, $to, $contents);
-	file_put_contents($file, $contents_new);
+	if (file_put_contents($file, $contents_new) === false) {
+		return false;
+	}
+	$contents_after = file_get_contents($file);
+
+	return strpos($contents_after, $to) !== false ? true : -1;
 }
 
 function ba_get_missing_patch_ids() {
 	$ret = array();
 	foreach (c_ba_patches as $idx => $entry) {
-		if (!file_exists(MYBB_ROOT.$entry['file'])) {
+		if (!empty($entry['might_not_exist']) && !file_exists(MYBB_ROOT.$entry['file'])) {
 			continue;
 		}
 		$contents = file_get_contents(MYBB_ROOT.$entry['file']);

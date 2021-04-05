@@ -13,4 +13,6 @@ $l['bmp_setting_bumpinterval_title'] = 'Bump interval (in hours)';
 $l['bmp_setting_bumpinterval_desc' ] = 'Set the number of hours that must elapse since the author\'s last post to a thread in the enabled forums before a new reply by the author will bump that thread.';
 
 $l['bmp_all_patched'] = 'All necessary patches have automatically been applied to the following file(s): {1}. To auto-revert them, uninstall this plugin.';
-$l['bmp_unwritable' ] = 'Patches could not be auto-applied to the following file(s): {1}. Ensure it/they are writable by your web server. ';
+$l['bmp_unwritable' ] = 'The following file(s) is/are not writable by your web server, and patches could not be auto-applied to it/them: {1}. Please grant your web server write permissions on that/those file(s). ';
+$l['bmp_fpcfalse'   ] = 'Whilst the following files(s) seem(s) to be writable by your web server, a return of false was obtained when trying to save it/them: {1}. Please ensure that your web server can write to that/those file(s). ';
+$l['bmp_unpatchable'] = 'Whilst the following file(s) is/are writable by your web server, not all of the patch(es) auto-applied to them succeeded: {1}. Please check that all of the "from" fields of the patch(es) for that/those file(s) has a match in the file(s), and adjust as necessary. ';
