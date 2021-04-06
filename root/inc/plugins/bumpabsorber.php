@@ -23,67 +23,73 @@ const c_ba_patches = array(
 		'might_not_exist' => true,
 		'from' => "    if (in_array('thread', \dvzStream\getCsvSettingValues('group_events_by'))) {",
 		'to'   => "    if (in_array('thread', \dvzStream\getCsvSettingValues('group_events_by'))) {
+/*Begin BmpAbs patch*/
         if (\$mybb->settings['bumpabsorber_forums'] == -1) {
             \$baWhere = 'p.dateline = t.lastpost';
         } else if (trim(\$mybb->settings['bumpabsorber_forums']) == '') {
             \$baWhere = 'p2.pid IS NULL';
         } else {
             \$baWhere = '(t.fid NOT IN ('.\$mybb->settings['bumpabsorber_forums'].') AND p2.pid IS NULL OR t.fid IN ('.\$mybb->settings['bumpabsorber_forums'].') AND p.dateline = t.lastpost)';
-        }",
+        }
+/*End BmpAbs patch*/",
 	),
 	array(
 		'file' => 'inc/plugins/dvz_stream/streams/posts.php',
 		'might_not_exist' => true,
 		'from' => '                " . $queryWhere . " AND p2.pid IS NULL',
-		'to'   => '                " . $queryWhere . " AND (" . $baWhere . ")',
+		'to'   => '                " . $queryWhere . /*Remainder of line (after open quote) is a BmpAbs patch*/" AND (" . $baWhere . ")',
 	),
 	array(
 		'file' => 'inc/plugins/dvz_stream/streams/posts.php',
 		'might_not_exist' => true,
 		'from' => '                " . $queryWhere . "
             ORDER BY p.pid DESC',
-		'to'   => '                " . $queryWhere . " AND p.dateline <= t.lastpost
+		'to'   => '                " . $queryWhere . /*Remainder of line (after open quote) is a BmpAbs patch*/" AND p.dateline <= t.lastpost
             ORDER BY p.pid DESC'
 	),
 	array(
 		'file' => 'xmlhttp.php',
 		'from' => "		if(\$thread['closed'] == 1)",
-		'to'   => "		if(\$thread['closed'] == 1 && !(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])))"
+		'to'   => "		if(\$thread['closed'] == 1/*Begin BmpAbs patch*/ && !(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))/*End BmpAbs patch*/)"
 	),
 	array(
 		'file' => 'editpost.php',
-		'from' => "	if(!is_moderator(\$fid, \"caneditposts\"))
-	{
-		if(\$thread['closed'] == 1)",
-		'to'   => "	if(!is_moderator(\$fid, \"caneditposts\"))
-	{
-		if(\$thread['closed'] == 1 && !(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])))"
+		'from' => "			error(\$lang->redirect_threadclosed);",
+		'to'   => "/*Begin BmpAbs patch*/
+			if (!(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))) {
+/*End BmpAbs patch (other than additional tab on next line*/
+				error(\$lang->redirect_threadclosed);
+/*Begin BmpAbs patch*/
+			}
+/*End BmpAbs patch*/",
 	),
 	array(
 		'file' => 'inc/functions_post.php',
 		'from' => "\$thread['closed'] != 1 && ",
-		'to'   => "(\$thread['closed'] != 1 || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])) && ",
+		'to'   => "/*Begin BmpAbs patch*/(/*End BmpAbs patch*/\$thread['closed'] != 1/*Begin BmpAbs patch*/ || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))/*End BmpAbs patch*/ && ",
 	),
 	array(
 		'file' => 'newreply.php',
-		'from' => "if(!is_moderator(\$fid, \"canpostclosedthreads\"))
-{
-	if(\$thread['closed'] == 1)",
-		'to'   => "if(!is_moderator(\$fid, \"canpostclosedthreads\"))
-{
-	if(\$thread['closed'] == 1 && !(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])))"
+		'from' => "		error(\$lang->redirect_threadclosed);",
+		'to'   => "/*Begin BmpAbs patch*/
+		if (!(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))) {
+/*End BmpAbs patch (other than additional tab on next line*/
+			error(\$lang->redirect_threadclosed);
+/*Begin BmpAbs patch*/
+		}
+/*End BmpAbs patch*/"
 	),
 	array(
 		'file' => 'showthread.php',
 		'from' => "	\$quickreply = '';
 	if(\$forumpermissions['canpostreplys'] != 0 && \$mybb->user['suspendposting'] != 1 && (\$thread['closed'] != 1",
 		'to'   => "	\$quickreply = '';
-	if(\$forumpermissions['canpostreplys'] != 0 && \$mybb->user['suspendposting'] != 1 && (\$thread['closed'] != 1 || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])",
+	if(\$forumpermissions['canpostreplys'] != 0 && \$mybb->user['suspendposting'] != 1 && (\$thread['closed'] != 1/*Begin BmpAbs patch*/ || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])/*End BmpAbs patch*/",
 	),
 );
 
 function bumpabsorber_info() {
-	global $lang, $plugins_cache;
+	global $lang, $plugins_cache, $cache;
 
 	$lang->load('bumpabsorber');
 
@@ -92,7 +98,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.7',
+		'version'       => '0.0.8',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -271,6 +277,10 @@ function bumpabsorber_hookin__newthread_end() {
 		}
 		if (!isset($modoptions)) {
 			$modoptions = '';
+		}
+		if (!empty($mybb->input['previewpost'])) {
+			$modopts = $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
+			$closecheck = !empty($modopts['closethread']) ? 'checked="checked"' : '';
 		}
 		eval('$closeoption .= "'.$templates->get('newreply_modoptions_close').'";');
 		eval('$modoptions = "'.$templates->get('newreply_modoptions').'";');
