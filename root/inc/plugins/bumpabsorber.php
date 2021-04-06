@@ -57,7 +57,7 @@ const c_ba_patches = array(
 		'from' => "			error(\$lang->redirect_threadclosed);",
 		'to'   => "/*Begin BmpAbs patch*/
 			if (!(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))) {
-/*End BmpAbs patch (other than additional tab on next line*/
+/*End BmpAbs patch (other than additional tab on next line) */
 				error(\$lang->redirect_threadclosed);
 /*Begin BmpAbs patch*/
 			}
@@ -73,7 +73,7 @@ const c_ba_patches = array(
 		'from' => "		error(\$lang->redirect_threadclosed);",
 		'to'   => "/*Begin BmpAbs patch*/
 		if (!(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))) {
-/*End BmpAbs patch (other than additional tab on next line*/
+/*End BmpAbs patch (other than additional tab on next line) */
 			error(\$lang->redirect_threadclosed);
 /*Begin BmpAbs patch*/
 		}
@@ -98,7 +98,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.8',
+		'version'       => '0.0.9',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
