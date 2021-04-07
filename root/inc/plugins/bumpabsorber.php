@@ -6,15 +6,15 @@ if (!defined('IN_MYBB')) {
 }
 
 if (!defined('IN_ADMINCP')) {
-	$plugins->add_hook('showthread_end'                    , 'bumpabsorber_hookin__showthread_end'                    );
-	$plugins->add_hook('newthread_end'                     , 'bumpabsorber_hookin__newthread_end'                     );
-	$plugins->add_hook('datahandler_post_insert_thread_end', 'bumpabsorber_hookin__datahandler_post_insert_thread_end');
-	$plugins->add_hook('datahandler_post_insert_post_end'  , 'bumpabsorber_hookin__datahandler_post_insert_post_end'  );
-	$plugins->add_hook('moderation_start'                  , 'bumpabsorber_hookin__moderation_start'                  );
-	$plugins->add_hook('datahandler_post_validate_post'    , 'bumpabsorber_hookin__datahandler_post_validate_post'    );
-	$plugins->add_hook('class_moderation_open_threads'     , 'bumpabsorber_hookin__class_moderation_open_threads'     );
-	$plugins->add_hook('editpost_end'                      , 'bumpabsorber_hookin__editpost_end'                      );
-	$plugins->add_hook('editpost_do_editpost_end'          , 'bumpabsorber_hookin__editpost_do_editpost_end'          );
+	$plugins->add_hook('showthread_end'                    , 'bumpabsorber_hookin__showthread_end'                            );
+	$plugins->add_hook('newthread_end'                     , 'bumpabsorber_hookin__newthread_end'                             );
+	$plugins->add_hook('datahandler_post_insert_thread_end', 'bumpabsorber_hookin__datahandler_post_insert_thread_end'        );
+	$plugins->add_hook('datahandler_post_insert_post_end'  , 'bumpabsorber_hookin__datahandler_post_insert_or_update_post_end');
+	$plugins->add_hook('datahandler_post_update_end'       , 'bumpabsorber_hookin__datahandler_post_insert_or_update_post_end');
+	$plugins->add_hook('moderation_start'                  , 'bumpabsorber_hookin__moderation_start'                          );
+	$plugins->add_hook('datahandler_post_validate_post'    , 'bumpabsorber_hookin__datahandler_post_validate_post'            );
+	$plugins->add_hook('class_moderation_open_threads'     , 'bumpabsorber_hookin__class_moderation_open_threads'             );
+	$plugins->add_hook('editpost_end'                      , 'bumpabsorber_hookin__editpost_end'                              );
 }
 
 const c_ba_patches = array(
@@ -98,7 +98,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.9',
+		'version'       => '0.0.10',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -352,7 +352,10 @@ function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
 // forum applicable to this plugin, by closing the thread, but only if this
 // would not have already occurred in the data handler, which it would have if
 // the thread's author is a moderator with the right to open and close threads.
-function bumpabsorber_hookin__datahandler_post_insert_post_end($postHandler) {
+//
+// Also restore the "last post" data for the thread/forum if this new/updated
+// post shouldn't bump the thread.
+function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHandler) {
 	global $mybb, $db, $lang, $thread, $ismod, $closed;
 
 	$post = $postHandler->data;
@@ -374,7 +377,7 @@ function bumpabsorber_hookin__datahandler_post_insert_post_end($postHandler) {
 
 			$modlogdata['fid'] = $thread['fid'];
 			$modlogdata['tid'] = $thread['tid'];
-			$modoptions = $post['modoptions'];
+			$modoptions = !empty($post['modoptions']) ? $post['modoptions'] : $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
 
 			if (!empty($modoptions['closethread']) && $thread['closed'] != 1) {
 				log_moderator_action($modlogdata, $lang->thread_closed);
@@ -611,26 +614,4 @@ function bumpabsorber_hookin__editpost_end() {
 		$bgcolor2 = 'trow2';
 	}
 
-}
-
-function bumpabsorber_hookin__editpost_do_editpost_end() {
-	global $mybb, $db, $thread, $fid;
-
-	if (($thread['closed'] == 0
-	     ||
-	     $thread['ba_closed_by_author'] == 1
-	    )
-	    &&
-	    $mybb->user['uid'] == $thread['uid']
-	    &&
-	    ($mybb->settings['bumpabsorber_forums'] == -1
-	     ||
-	     in_array($fid, explode(',', $mybb->settings['bumpabsorber_forums']))
-	    )
-	   ) {
-		$modoptions = $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
-		if (!empty($modoptions['closethread'])) {
-			$db->update_query('threads', array('closed' => 1, 'ba_closed_by_author' => 1), "tid = {$thread['tid']}");
-		} else	$db->update_query('threads', array('closed' => 0, 'ba_closed_by_author' => 0), "tid = {$thread['tid']}");
-	   }
 }
