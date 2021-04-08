@@ -98,7 +98,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.11',
+		'version'       => '0.0.12',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -395,6 +395,7 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 				'lastposter'    => $g_ba_last_arr['thread_lastposter'   ],
 				'lastposteruid' => $g_ba_last_arr['thread_lastposteruid'],
 			);
+			$update_array = array_map(array($db, 'escape_string'), $update_array);
 			$db->update_query('threads', $update_array, "tid='{$thread['tid']}'");
 
 			$update_array = array(
@@ -404,6 +405,7 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 				'lastposttid'     => $g_ba_last_arr['forum_lastposttid'    ],
 				'lastpostsubject' => $g_ba_last_arr['forum_lastpostsubject'],
 			);
+			$update_array = array_map(array($db, 'escape_string'), $update_array);
 			$db->update_query('forums', $update_array, "fid='{$thread['fid']}'");
 		}
 	}
