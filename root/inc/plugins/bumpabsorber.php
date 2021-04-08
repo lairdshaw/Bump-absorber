@@ -98,7 +98,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.10',
+		'version'       => '0.0.11',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -302,9 +302,9 @@ function bumpabsorber_hookin__showthread_end() {
 	    &&
 	    $mybb->user['uid'] == $thread['uid']
 	    &&
-	    ($thread['closed'] != '1' || $thread['ba_closed_by_author'] == 1)
+	    ($thread['closed'] != 1 || $thread['ba_closed_by_author'] == 1)
 	    &&
-	    (!$ismod || !is_moderator($thread['fid'], 'canopenclosethreads'))
+	    !is_moderator($thread['fid'], 'canopenclosethreads')
 	   ) {
 		if (!isset($closeoption)) {
 			$closeoption = '';
@@ -356,9 +356,10 @@ function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
 // Also restore the "last post" data for the thread/forum if this new/updated
 // post shouldn't bump the thread.
 function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHandler) {
-	global $mybb, $db, $lang, $thread, $ismod, $closed;
+	global $mybb, $db, $lang;
 
 	$post = $postHandler->data;
+	$thread = get_thread($post['tid']);
 
 	if ($mybb->settings['bumpabsorber_forums'] == -1
 	    ||
@@ -368,10 +369,7 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 		    &&
 		    !$post['savedraft']
 		    &&
-		    (!$ismod
-		     ||
-		     !is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])
-		    )
+		    !is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])
 		   ) {
 			$lang->load('moderation');
 
@@ -410,9 +408,7 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 		}
 	}
 
-	$ismod = is_moderator($post['fid'], '', $post['uid']);
-	$thread = get_thread($post['tid']);
-	if (!$post['savedraft'] && $ismod && isset($post['modoptions']) && empty($modoptions['closethread']) && $thread['closed'] == 1 && is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])) {
+	if (!$post['savedraft'] && isset($post['modoptions']) && empty($modoptions['closethread']) && $thread['closed'] == 1 && is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])) {
 		$db->update_query('threads', array('ba_closed_by_author' => 0), "tid = {$thread['tid']}");
 	}
 }
@@ -430,11 +426,9 @@ function ba_can_bump_thread($thread, $uid = false) {
 			$uid = $mybb->user['uid'];
 		}
 		if ($uid == $thread['uid']) {
-			$query = $db->simple_select('posts', 'MAX(dateline) AS lastposted', 'tid='.$thread['tid'].' AND uid='.$uid);
-			$lastposted = $db->fetch_field($query, 'lastposted');
-			$elapsed = TIME_NOW - $lastposted;
+			$time_since_last_bump = TIME_NOW - $thread['lastpost'];
 			$required_wait = $mybb->settings['bumpabsorber_bumpintervalhrs'] * 3600;
-			if (!$lastposted || $elapsed >= $required_wait) {
+			if ($time_since_last_bump >= $required_wait) {
 				$can_bump = true;
 			}
 		}
