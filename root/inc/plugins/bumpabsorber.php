@@ -98,7 +98,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.12',
+		'version'       => '0.0.13',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -371,7 +371,7 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 		    &&
 		    !is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])
 		   ) {
-			$lang->load('moderation');
+			$lang->load('datahandler_post');
 
 			$modlogdata['fid'] = $thread['fid'];
 			$modlogdata['tid'] = $thread['tid'];
