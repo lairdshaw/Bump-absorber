@@ -5,14 +5,16 @@ if (!defined('IN_MYBB')) {
 	die('Direct access to this file is not allowed.');
 }
 
-if (!defined('IN_ADMINCP')) {
+if (defined('IN_ADMINCP')) {
+	$plugins->add_hook('admin_tools_recount_rebuild_thread_counters', 'bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters');
+} else {
 	$plugins->add_hook('showthread_end'                    , 'bumpabsorber_hookin__showthread_end'                            );
 	$plugins->add_hook('newthread_end'                     , 'bumpabsorber_hookin__newthread_end'                             );
 	$plugins->add_hook('datahandler_post_insert_thread_end', 'bumpabsorber_hookin__datahandler_post_insert_thread_end'        );
+	$plugins->add_hook('datahandler_post_insert_post'      , 'bumpabsorber_hookin__datahandler_post_insert_post'              );
 	$plugins->add_hook('datahandler_post_insert_post_end'  , 'bumpabsorber_hookin__datahandler_post_insert_or_update_post_end');
 	$plugins->add_hook('datahandler_post_update_end'       , 'bumpabsorber_hookin__datahandler_post_insert_or_update_post_end');
 	$plugins->add_hook('moderation_start'                  , 'bumpabsorber_hookin__moderation_start'                          );
-	$plugins->add_hook('datahandler_post_validate_post'    , 'bumpabsorber_hookin__datahandler_post_validate_post'            );
 	$plugins->add_hook('class_moderation_open_threads'     , 'bumpabsorber_hookin__class_moderation_open_threads'             );
 	$plugins->add_hook('editpost_end'                      , 'bumpabsorber_hookin__editpost_end'                              );
 }
@@ -86,6 +88,42 @@ const c_ba_patches = array(
 		'to'   => "	\$quickreply = '';
 	if(\$forumpermissions['canpostreplys'] != 0 && \$mybb->user['suspendposting'] != 1 && (\$thread['closed'] != 1/*Begin BmpAbs patch*/ || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])/*End BmpAbs patch*/",
 	),
+	array(
+		'file' => 'inc/functions.php',
+		'from' => "	\$lastpost['username'] = \$db->escape_string(\$lastpost['username']);
+	\$firstpost['username'] = \$db->escape_string(\$firstpost['username']);
+
+	\$update_array = array(",
+		'to'   => "	\$lastpost['username'] = \$db->escape_string(\$lastpost['username']);
+	\$firstpost['username'] = \$db->escape_string(\$firstpost['username']);
+
+/*Begin BmpAbs patch*/
+	if (function_exists('ba_can_bump_thread') && !ba_can_bump_thread(\$thread)) {
+		\$lastpost['username'] = \$thread['lastposter'];
+		\$lastpost['uid'] = \$thread['lastposteruid'];
+		\$lastpost['dateline'] = \$thread['lastpost'];
+	}
+/*End BmpAbs patch*/
+
+	\$update_array = array(",
+	),
+	array(
+		'file' => 'inc/functions.php',
+		'from' => "	\$lastpost['username'] = \$db->escape_string(\$lastpost['username']);
+
+	\$update_array = array(",
+		'to'   => "	\$lastpost['username'] = \$db->escape_string(\$lastpost['username']);
+
+/*Begin BmpAbs patch*/
+	if (function_exists('ba_can_bump_thread') && !ba_can_bump_thread(\$thread = get_thread(\$tid))) {
+		\$lastpost['username'] = \$thread['lastposter'];
+		\$lastpost['uid'] = \$thread['lastposteruid'];
+		\$lastpost['dateline'] = \$thread['lastpost'];
+	}
+/*End BmpAbs patch*/
+
+	\$update_array = array(",
+	),
 );
 
 function bumpabsorber_info() {
@@ -98,7 +136,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.0.13',
+		'version'       => '0.1.1',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -228,33 +266,21 @@ function bumpabsorber_deactivate() {
 	find_replace_templatesets('editpost', '(\\r?\\n\\{\\$modoptions\\})', '', 0);
 }
 
-// Store the lastpost data for the thread/forum in a global variable if
-// necessary, so that we can restore it when the post datahandler updates it.
-function bumpabsorber_hookin__datahandler_post_validate_post($postHandler) {
-	global $g_ba_last_arr, $mybb, $db, $plugins;
+/**
+ * Signal via a global variable to ba_can_bump_thread() - which will be called
+ * by one of the above patches to inc/functions.php - that the user is inserting
+ * a post in an existing thread (potentially one under this plugin's remit).
+ */
+function bumpabsorber_hookin__datahandler_post_insert_post($postHandler) {
+	global $g_ba_post_is_being_inserted;
 
-	if (($thread = get_thread($postHandler->data['tid']))
-	    &&
-	    ($mybb->settings['bumpabsorber_forums'] == -1
-	     ||
-	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
-	    )
-	    &&
-	    !ba_can_bump_thread($thread)
-	   ) {
-		$query = $db->simple_select('forums', '*', "fid={$thread['fid']}");
-		$forum = $db->fetch_array($query);
-		$g_ba_last_arr = array(
-			'thread_lastpost'        => $thread['lastpost'       ],
-			'thread_lastposter'      => $thread['lastposter'     ],
-			'thread_lastposteruid'   => $thread['lastposteruid'  ],
-			'forum_lastpost'         => $forum ['lastpost'       ],
-			'forum_lastposter'       => $forum ['lastposter'     ],
-			'forum_lastposteruid'    => $forum ['lastposteruid'  ],
-			'forum_lastposttid'      => $forum ['lastposttid'    ],
-			'forum_lastpostsubject'  => $forum ['lastpostsubject'],
-		);
-	}
+	$g_ba_post_is_being_inserted = true;
+}
+
+function bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters($postHandler) {
+	global $g_ba_thread_counters_are_being_rebuilt;
+
+	$g_ba_thread_counters_are_being_rebuilt = true;
 }
 
 // Show the "Close Thread" checkbox when starting a thread in a forum applicable
@@ -352,9 +378,6 @@ function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
 // forum applicable to this plugin, by closing the thread, but only if this
 // would not have already occurred in the data handler, which it would have if
 // the thread's author is a moderator with the right to open and close threads.
-//
-// Also restore the "last post" data for the thread/forum if this new/updated
-// post shouldn't bump the thread.
 function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHandler) {
 	global $mybb, $db, $lang;
 
@@ -387,27 +410,6 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 				$postHandler->return_values['closed'] = 0;
 			}
 		}
-		if (!ba_can_bump_thread($thread)) {
-			global $g_ba_last_arr;
-
-			$update_array = array(
-				'lastpost'      => $g_ba_last_arr['thread_lastpost'     ],
-				'lastposter'    => $g_ba_last_arr['thread_lastposter'   ],
-				'lastposteruid' => $g_ba_last_arr['thread_lastposteruid'],
-			);
-			$update_array = array_map(array($db, 'escape_string'), $update_array);
-			$db->update_query('threads', $update_array, "tid='{$thread['tid']}'");
-
-			$update_array = array(
-				'lastpost'        => $g_ba_last_arr['forum_lastpost'       ],
-				'lastposter'      => $g_ba_last_arr['forum_lastposter'     ],
-				'lastposteruid'   => $g_ba_last_arr['forum_lastposteruid'  ],
-				'lastposttid'     => $g_ba_last_arr['forum_lastposttid'    ],
-				'lastpostsubject' => $g_ba_last_arr['forum_lastpostsubject'],
-			);
-			$update_array = array_map(array($db, 'escape_string'), $update_array);
-			$db->update_query('forums', $update_array, "fid='{$thread['fid']}'");
-		}
 	}
 
 	if (!$post['savedraft'] && isset($post['modoptions']) && empty($modoptions['closethread']) && $thread['closed'] == 1 && is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])) {
@@ -416,24 +418,56 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 }
 
 // Checks whether the user with uid $uid can bump the thread $thread.
-// Assumes that the thread is in a forum enabled for this plugin.
 function ba_can_bump_thread($thread, $uid = false) {
-	global $mybb, $db;
+	global $mybb, $db, $g_ba_post_is_being_inserted, $g_ba_thread_counters_are_being_rebuilt;
 
 	static $cached_ret = -1;
 
 	if ($cached_ret === -1) {
-		$can_bump = false;
 		if ($uid === false) {
 			$uid = $mybb->user['uid'];
 		}
-		if ($uid == $thread['uid']) {
-			$time_since_last_bump = TIME_NOW - $thread['lastpost'];
-			$required_wait = $mybb->settings['bumpabsorber_bumpintervalhrs'] * 3600;
-			if ($time_since_last_bump >= $required_wait) {
-				$can_bump = true;
-			}
-		}
+		$time_since_last_bump = TIME_NOW - $thread['lastpost'];
+		$required_wait = $mybb->settings['bumpabsorber_bumpintervalhrs'] * 3600;
+		/* Can not bump if:
+		 * we are in a ba forum
+		 * AND
+		 * ((a new post is being inserted
+		 *   AND
+		 *   (the poster is not the OP
+		 *    OR
+		 *    the bump interval has not expired
+		 *   )
+		 *  )
+		 *  OR
+		 *  (a new post is NOT being inserted
+		 *   AND
+		 *   we are NOT rebuilding the thread counters via Recount & Rebuild
+		 *  )
+		 * )
+		 */
+		$can_bump =
+		  !(
+		    ($mybb->settings['bumpabsorber_forums'] == -1
+		     ||
+		     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
+		    )
+		    &&
+		    (
+		     (!empty($g_ba_post_is_being_inserted)
+		      &&
+		      ($uid != $thread['uid']
+		       ||
+		       $time_since_last_bump < $required_wait
+		      )
+		     )
+		     ||
+		     (empty($g_ba_post_is_being_inserted)
+		      &&
+		      empty($g_ba_thread_counters_are_being_rebuilt)
+		     )
+		    )
+		   );
 		$cached_ret = $can_bump;
 	} else	$can_bump = $cached_ret;
 
