@@ -1,7 +1,7 @@
 <?php
 
 $l['bmp_name'] = 'Bump Absorber';
-$l['bmp_desc'] = 'Allows the stipulation of forums in which only replies by a thread\'s author after the expiry of a bump interval bump the thread - replies by other members never bump it. Also allows thread authors in those forums to close their threads to new replies.';
+$l['bmp_desc'] = 'Allows (1) the stipulation of forums in which only replies by a thread\'s author after the expiry of a stipulated bump interval bump the thread - replies by other members never bump it - and (2) the stipulation of forums in which the authors of threads in those forums may close and reopen their threads to new replies (without needing to be a moderator).';
 
 $l['bmp_settings_title'] = 'Bump Absorber Settings';
 $l['bmp_settings_desc' ] = 'Settings for the Bump Absorber plugin.';
@@ -11,6 +11,9 @@ $l['bmp_setting_forums_desc' ] = 'Select the forums for which bump absorption sh
 
 $l['bmp_setting_bumpinterval_title'] = 'Bump interval (in hours)';
 $l['bmp_setting_bumpinterval_desc' ] = 'Set the number of hours that must elapse since the author\'s last post to a thread in the enabled forums before a new reply by the author will bump that thread.';
+
+$l['bmp_setting_opclosable_forums_title'] = 'Original poster-closable forums';
+$l['bmp_setting_opclosable_forums_desc' ] = 'Select the forums the threads of which the original poster is permitted to close/reopen.';
 
 $l['bmp_all_patched'] = 'All necessary patches have automatically been applied to the following file(s): {1}. To auto-revert them, uninstall this plugin.';
 $l['bmp_unwritable' ] = 'The following file(s) is/are not writable by your web server, and patches could not be auto-applied to it/them: {1}. Please grant your web server write permissions on that/those file(s). ';

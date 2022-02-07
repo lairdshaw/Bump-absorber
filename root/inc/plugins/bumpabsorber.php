@@ -1,5 +1,23 @@
 <?php
 
+/*
+ * Bump Absorber, a plugin for MyBB 1.8.x.
+ * Copyright (C) 2021-2022 Laird Shaw.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 // Disallow direct access to this file for security reasons.
 if (!defined('IN_MYBB')) {
 	die('Direct access to this file is not allowed.');
@@ -136,7 +154,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '0.1.1',
+		'version'       => '1.0.0',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -194,13 +212,19 @@ function bumpabsorber_install() {
 			'title'       => $lang->bmp_setting_forums_title,
 			'description' => $lang->bmp_setting_forums_desc,
 			'optionscode' => 'forumselect',
-			'value'       => '-1',
+			'value'       => '',
 		),
 		'bumpabsorber_bumpintervalhrs' => array(
 			'title'       => $lang->bmp_setting_bumpinterval_title,
 			'description' => $lang->bmp_setting_bumpinterval_desc,
 			'optionscode' => "numeric\nmin=1",
 			'value'       => '1'
+		),
+		'bumpabsorber_opclosable_forums' => array(
+			'title'       => $lang->bmp_setting_opclosable_forums_title,
+			'description' => $lang->bmp_setting_opclosable_forums_desc,
+			'optionscode' => 'forumselect',
+			'value'       => '',
 		),
 	);
 
@@ -283,14 +307,14 @@ function bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters($postH
 	$g_ba_thread_counters_are_being_rebuilt = true;
 }
 
-// Show the "Close Thread" checkbox when starting a thread in a forum applicable
-// to this plugin.
+// Show the "Close Thread" checkbox when starting a thread in a forum stipulated
+// in this plugin's settings.
 function bumpabsorber_hookin__newthread_end() {
 	global $modoptions, $bgcolor, $stickoption, $closeoption, $mybb, $templates, $lang, $fid;
 
-	if (($mybb->settings['bumpabsorber_forums'] == -1
+	if (($mybb->settings['bumpabsorber_opclosable_forums'] == -1
 	     ||
-	     in_array($fid, explode(',', $mybb->settings['bumpabsorber_forums']))
+	     in_array($fid, explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
 	    )
 	    &&
 	    (!is_moderator($fid)
@@ -314,16 +338,16 @@ function bumpabsorber_hookin__newthread_end() {
 }
 
 // Show the "Close Thread" checkbox in the quick reply box when viewing a thread
-// if the current user is the thread's author in a forum applicable to this
-// plugin.
+// if the current user is the thread's author in a forum stipulated in this
+// plugin's settings.
 function bumpabsorber_hookin__showthread_end() {
 	global $mybb, $templates, $lang, $theme, $moderation_notice, $tid, $reply_subject, $posthash, $last_pid, $page, $collapsedthead, $collapsedimg, $expaltext, $collapsed, $trow, $option_signature, $closeoption, $captcha, $thread, $quickreply;
 
 	if (!empty($quickreply)
 	    &&
-	    ($mybb->settings['bumpabsorber_forums'] == -1
+	    ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
 	     ||
-	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
+	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
 	    )
 	    &&
 	    $mybb->user['uid'] == $thread['uid']
@@ -342,8 +366,8 @@ function bumpabsorber_hookin__showthread_end() {
 	}
 }
 
-// Process the "Close Thread" checkbox on thread creation in a forum applicable
-// to this plugin by closing the thread, but only if this would not have already
+// Process the "Close Thread" checkbox on thread creation in a forum stipulated in
+// this plugin's settings by closing the thread, but only if this would not have already
 // occurred in the data handler, which it would have if the thread's author is
 // a moderator with the right to open and close threads.
 function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
@@ -360,9 +384,9 @@ function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
 	    &&
 	    !empty($thread['modoptions']['closethread'])
 	    &&
-	    ($mybb->settings['bumpabsorber_forums'] == -1
+	    ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
 	     ||
-	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
+	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
 	    )
 	   ) {
 		$lang->load('moderation');
@@ -375,7 +399,7 @@ function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
 }
 
 // Process the "Close Thread" checkbox, on reply to a thread by its author in a
-// forum applicable to this plugin, by closing the thread, but only if this
+// forum stipulated in this plugin's settings, by closing the thread, but only if this
 // would not have already occurred in the data handler, which it would have if
 // the thread's author is a moderator with the right to open and close threads.
 function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHandler) {
@@ -384,9 +408,9 @@ function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHa
 	$post = $postHandler->data;
 	$thread = get_thread($post['tid']);
 
-	if ($mybb->settings['bumpabsorber_forums'] == -1
+	if ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
 	    ||
-	    in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
+	    in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
 	   ) {
 		if ($mybb->user['uid'] == $thread['uid']
 		    &&
@@ -490,9 +514,9 @@ function bumpabsorber_hookin__moderation_start() {
 			error($lang->error_invalidthread, $lang->error);
 		}
 		$fid = $thread['fid'];
-		if (!($mybb->settings['bumpabsorber_forums'] == -1
+		if (!($mybb->settings['bumpabsorber_opclosable_forums'] == -1
 		      ||
-		      in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
+		      in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
 		     )
 		   ) {
 			error($lang->bmp_err_no_close_right_in_forum, $lang->error);
@@ -601,7 +625,7 @@ function ba_can_edit_thread($thread, $uid = -1) {
 		$uid = $mybb->user['uid'];
 	}
 
-	return $thread['ba_closed_by_author'] == 1 && $uid == $thread['uid'] && ($mybb->settings['bumpabsorber_forums'] == -1 || in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums'])));
+	return $thread['ba_closed_by_author'] == 1 && $uid == $thread['uid'] && ($mybb->settings['bumpabsorber_opclosable_forums'] == -1 || in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums'])));
 }
 
 function bumpabsorber_hookin__class_moderation_open_threads($tids) {
@@ -622,11 +646,13 @@ function bumpabsorber_hookin__editpost_end() {
 	    &&
 	    $mybb->user['uid'] == $thread['uid']
 	    &&
-	    ($mybb->settings['bumpabsorber_forums'] == -1
+	    ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
 	     ||
-	     in_array($fid, explode(',', $mybb->settings['bumpabsorber_forums']))
+	     in_array($fid, explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
 	    )
 	   ) {
+		$lang->load('newthread');
+
 		if (isset($mybb->input['previewpost'])) {
 			$modoptions = $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
 			if (isset($modoptions['closethread']) && $modoptions['closethread'] == 1) {
@@ -635,13 +661,11 @@ function bumpabsorber_hookin__editpost_end() {
 		} else {
 			$closecheck = $thread['closed'] ? ' checked="checked"' : '';
 		}
-		$lang->load('moderation');
-		$lang->load('newreply');
+
 		eval('$closeoption = "'.$templates->get('newreply_modoptions_close').'";');
 		$stickoption = '';
 		eval('$modoptions = "'.$templates->get('newreply_modoptions').'";');
 		$bgcolor = 'trow1';
 		$bgcolor2 = 'trow2';
 	}
-
 }
