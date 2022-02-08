@@ -1,10 +1,6 @@
 ## About Bump Absorber
 
-Bump Absorber is a plugin for [MyBB](https://mybb.com/) 1.8 which was written for a fee for a MyBB admin - [@andrewjs18](https://github.com/andrewjs18) who asked that it then be open sourced. It provides two features:
-
-1. In stipulated forums: the inhibiting of thread bumps (by a new post) other than the original poster after a stipulated period in hours has elapsed.
-
-2. In separately stipulated forums: the ability of the original poster to close/open their thread, without needing to be a moderator/admin.
+Bump Absorber is a plugin for [MyBB](https://mybb.com/) 1.8. It inhibits thread bumps (by new posts) in stipulated forums: only replies by the thread's author bump the thread, and only after the expiry of a stipulated bump interval (since the last bumping post, counting the first post as a bumping post). Replies by other members never bump threads in the stipulated forums.
 
 ## Requirements
 
@@ -37,3 +33,7 @@ Bump Absorber is licensed under the GPL v3.
 ## Author
 
 [Laird Shaw](https://creativeandcritical.net/)
+
+## Credits
+
+Bump Absorber was written for a fee for a MyBB admin - [@andrewjs18](https://github.com/andrewjs18) - who asked that it then be open sourced.

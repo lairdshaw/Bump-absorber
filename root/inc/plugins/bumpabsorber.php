@@ -25,17 +25,7 @@ if (!defined('IN_MYBB')) {
 
 if (defined('IN_ADMINCP')) {
 	$plugins->add_hook('admin_tools_recount_rebuild_thread_counters', 'bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters');
-} else {
-	$plugins->add_hook('showthread_end'                    , 'bumpabsorber_hookin__showthread_end'                            );
-	$plugins->add_hook('newthread_end'                     , 'bumpabsorber_hookin__newthread_end'                             );
-	$plugins->add_hook('datahandler_post_insert_thread_end', 'bumpabsorber_hookin__datahandler_post_insert_thread_end'        );
-	$plugins->add_hook('datahandler_post_insert_post'      , 'bumpabsorber_hookin__datahandler_post_insert_post'              );
-	$plugins->add_hook('datahandler_post_insert_post_end'  , 'bumpabsorber_hookin__datahandler_post_insert_or_update_post_end');
-	$plugins->add_hook('datahandler_post_update_end'       , 'bumpabsorber_hookin__datahandler_post_insert_or_update_post_end');
-	$plugins->add_hook('moderation_start'                  , 'bumpabsorber_hookin__moderation_start'                          );
-	$plugins->add_hook('class_moderation_open_threads'     , 'bumpabsorber_hookin__class_moderation_open_threads'             );
-	$plugins->add_hook('editpost_end'                      , 'bumpabsorber_hookin__editpost_end'                              );
-}
+} else	$plugins->add_hook('datahandler_post_insert_post'      , 'bumpabsorber_hookin__datahandler_post_insert_post'              );
 
 const c_ba_patches = array(
 	array(
@@ -66,45 +56,6 @@ const c_ba_patches = array(
             ORDER BY p.pid DESC',
 		'to'   => '                " . $queryWhere . /*Remainder of line (after open quote) is a BmpAbs patch*/" AND p.dateline <= t.lastpost
             ORDER BY p.pid DESC'
-	),
-	array(
-		'file' => 'xmlhttp.php',
-		'from' => "		if(\$thread['closed'] == 1)",
-		'to'   => "		if(\$thread['closed'] == 1/*Begin BmpAbs patch*/ && !(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))/*End BmpAbs patch*/)"
-	),
-	array(
-		'file' => 'editpost.php',
-		'from' => "			error(\$lang->redirect_threadclosed);",
-		'to'   => "/*Begin BmpAbs patch*/
-			if (!(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))) {
-/*End BmpAbs patch (other than additional tab on next line) */
-				error(\$lang->redirect_threadclosed);
-/*Begin BmpAbs patch*/
-			}
-/*End BmpAbs patch*/",
-	),
-	array(
-		'file' => 'inc/functions_post.php',
-		'from' => "\$thread['closed'] != 1 && ",
-		'to'   => "/*Begin BmpAbs patch*/(/*End BmpAbs patch*/\$thread['closed'] != 1/*Begin BmpAbs patch*/ || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))/*End BmpAbs patch*/ && ",
-	),
-	array(
-		'file' => 'newreply.php',
-		'from' => "		error(\$lang->redirect_threadclosed);",
-		'to'   => "/*Begin BmpAbs patch*/
-		if (!(function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid']))) {
-/*End BmpAbs patch (other than additional tab on next line) */
-			error(\$lang->redirect_threadclosed);
-/*Begin BmpAbs patch*/
-		}
-/*End BmpAbs patch*/"
-	),
-	array(
-		'file' => 'showthread.php',
-		'from' => "	\$quickreply = '';
-	if(\$forumpermissions['canpostreplys'] != 0 && \$mybb->user['suspendposting'] != 1 && (\$thread['closed'] != 1",
-		'to'   => "	\$quickreply = '';
-	if(\$forumpermissions['canpostreplys'] != 0 && \$mybb->user['suspendposting'] != 1 && (\$thread['closed'] != 1/*Begin BmpAbs patch*/ || function_exists('ba_can_edit_thread') && ba_can_edit_thread(\$thread, \$mybb->user['uid'])/*End BmpAbs patch*/",
 	),
 	array(
 		'file' => 'inc/functions.php',
@@ -154,7 +105,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '1.0.0',
+		'version'       => '2.0.0',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -220,12 +171,6 @@ function bumpabsorber_install() {
 			'optionscode' => "numeric\nmin=1",
 			'value'       => '1'
 		),
-		'bumpabsorber_opclosable_forums' => array(
-			'title'       => $lang->bmp_setting_opclosable_forums_title,
-			'description' => $lang->bmp_setting_opclosable_forums_desc,
-			'optionscode' => 'forumselect',
-			'value'       => '',
-		),
 	);
 
 	$disporder = 1;
@@ -245,10 +190,6 @@ function bumpabsorber_install() {
 	}
 
 	rebuild_settings();
-
-	if (!$db->field_exists('ba_closed_by_author', 'threads')) {
-		$db->add_column('threads', 'ba_closed_by_author', 'tinyint(1) NOT NULL DEFAULT 0');
-	}
 }
 
 function bumpabsorber_uninstall() {
@@ -265,6 +206,8 @@ function bumpabsorber_uninstall() {
 
 	ba_revert_patches();
 
+	// This field existed in the first published version of the plugin, before
+	// the OP-thread-closer plugin was split out.
 	if ($db->field_exists('ba_closed_by_author', 'threads')) {
 		$db->drop_column('threads', 'ba_closed_by_author');
 	}
@@ -278,17 +221,9 @@ function bumpabsorber_is_installed() {
 	return $db->fetch_field($query, 'gid') ? true : false;
 }
 
-function bumpabsorber_activate() {
-	require_once MYBB_ROOT.'/inc/adminfunctions_templates.php';
-	find_replace_templatesets('editpost', '(\\{\\$postoptions\\})', '{$postoptions}
-{$modoptions}'
-	);
-}
+function bumpabsorber_activate() {}
 
-function bumpabsorber_deactivate() {
-	require_once MYBB_ROOT.'/inc/adminfunctions_templates.php';
-	find_replace_templatesets('editpost', '(\\r?\\n\\{\\$modoptions\\})', '', 0);
-}
+function bumpabsorber_deactivate() {}
 
 /**
  * Signal via a global variable to ba_can_bump_thread() - which will be called
@@ -305,140 +240,6 @@ function bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters($postH
 	global $g_ba_thread_counters_are_being_rebuilt;
 
 	$g_ba_thread_counters_are_being_rebuilt = true;
-}
-
-// Show the "Close Thread" checkbox when starting a thread in a forum stipulated
-// in this plugin's settings.
-function bumpabsorber_hookin__newthread_end() {
-	global $modoptions, $bgcolor, $stickoption, $closeoption, $mybb, $templates, $lang, $fid;
-
-	if (($mybb->settings['bumpabsorber_opclosable_forums'] == -1
-	     ||
-	     in_array($fid, explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
-	    )
-	    &&
-	    (!is_moderator($fid)
-	     ||
-	     !is_moderator($fid, 'canopenclosethreads')
-	    )
-	   ) {
-		if (!isset($closeoption)) {
-			$closeoption = '';
-		}
-		if (!isset($modoptions)) {
-			$modoptions = '';
-		}
-		if (!empty($mybb->input['previewpost'])) {
-			$modopts = $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
-			$closecheck = !empty($modopts['closethread']) ? 'checked="checked"' : '';
-		}
-		eval('$closeoption .= "'.$templates->get('newreply_modoptions_close').'";');
-		eval('$modoptions = "'.$templates->get('newreply_modoptions').'";');
-	}
-}
-
-// Show the "Close Thread" checkbox in the quick reply box when viewing a thread
-// if the current user is the thread's author in a forum stipulated in this
-// plugin's settings.
-function bumpabsorber_hookin__showthread_end() {
-	global $mybb, $templates, $lang, $theme, $moderation_notice, $tid, $reply_subject, $posthash, $last_pid, $page, $collapsedthead, $collapsedimg, $expaltext, $collapsed, $trow, $option_signature, $closeoption, $captcha, $thread, $quickreply;
-
-	if (!empty($quickreply)
-	    &&
-	    ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
-	     ||
-	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
-	    )
-	    &&
-	    $mybb->user['uid'] == $thread['uid']
-	    &&
-	    ($thread['closed'] != 1 || $thread['ba_closed_by_author'] == 1)
-	    &&
-	    !is_moderator($thread['fid'], 'canopenclosethreads')
-	   ) {
-		if (!isset($closeoption)) {
-			$closeoption = '';
-		}
-		$closelinkch = $thread['closed'] ? ' checked="checked"' : '';
-
-		eval('$closeoption .= "'.$templates->get('showthread_quickreply_options_close').'";');
-		eval('$quickreply = "'.$templates->get('showthread_quickreply').'";');
-	}
-}
-
-// Process the "Close Thread" checkbox on thread creation in a forum stipulated in
-// this plugin's settings by closing the thread, but only if this would not have already
-// occurred in the data handler, which it would have if the thread's author is
-// a moderator with the right to open and close threads.
-function bumpabsorber_hookin__datahandler_post_insert_thread_end($postHandler) {
-	global $mybb, $db, $lang;
-
-	$thread = $postHandler->data;
-
-	if (!$thread['savedraft']
-	    &&
-	    (!is_moderator($thread['fid'], '', $thread['uid'])
-	     ||
-	     !is_moderator($thread['fid'], 'canopenclosethreads', $thread['uid'])
-	    )
-	    &&
-	    !empty($thread['modoptions']['closethread'])
-	    &&
-	    ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
-	     ||
-	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
-	    )
-	   ) {
-		$lang->load('moderation');
-
-		$modlogdata['fid'] = $thread['fid'];
-		$modlogdata['tid'] = $postHandler->tid;
-		log_moderator_action($modlogdata, $lang->thread_closed);
-		$db->update_query('threads', array('closed' => 1, 'ba_closed_by_author' => 1), "tid='{$postHandler->tid}'");
-	}
-}
-
-// Process the "Close Thread" checkbox, on reply to a thread by its author in a
-// forum stipulated in this plugin's settings, by closing the thread, but only if this
-// would not have already occurred in the data handler, which it would have if
-// the thread's author is a moderator with the right to open and close threads.
-function bumpabsorber_hookin__datahandler_post_insert_or_update_post_end($postHandler) {
-	global $mybb, $db, $lang;
-
-	$post = $postHandler->data;
-	$thread = get_thread($post['tid']);
-
-	if ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
-	    ||
-	    in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
-	   ) {
-		if ($mybb->user['uid'] == $thread['uid']
-		    &&
-		    !$post['savedraft']
-		    &&
-		    !is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])
-		   ) {
-			$lang->load('datahandler_post');
-
-			$modlogdata['fid'] = $thread['fid'];
-			$modlogdata['tid'] = $thread['tid'];
-			$modoptions = !empty($post['modoptions']) ? $post['modoptions'] : $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
-
-			if (!empty($modoptions['closethread']) && $thread['closed'] != 1) {
-				log_moderator_action($modlogdata, $lang->thread_closed);
-				$db->update_query('threads', array('closed' => 1, 'ba_closed_by_author' => 1), "tid='{$thread['tid']}'");
-				$postHandler->return_values['closed'] = 1;
-			} else if (empty($modoptions['closethread']) && $thread['closed'] == 1 && $thread['ba_closed_by_author'] == 1) {
-				log_moderator_action($modlogdata, $lang->thread_opened);
-				$db->update_query('threads', array('closed' => 0, 'ba_closed_by_author' => 0), "tid='{$thread['tid']}'");
-				$postHandler->return_values['closed'] = 0;
-			}
-		}
-	}
-
-	if (!$post['savedraft'] && isset($post['modoptions']) && empty($modoptions['closethread']) && $thread['closed'] == 1 && is_moderator($post['fid'], 'canopenclosethreads', $post['uid'])) {
-		$db->update_query('threads', array('ba_closed_by_author' => 0), "tid = {$thread['tid']}");
-	}
 }
 
 // Checks whether the user with uid $uid can bump the thread $thread.
@@ -498,58 +299,6 @@ function ba_can_bump_thread($thread, $uid = false) {
 	return $can_bump;
 }
 
-// Not yet used via the user interface, but works if the appropriate URL is
-// entered directly.
-// e.g., https://your.forum/moderation.php?action=ba_toggle_own_thread_closed&tid=[tid]
-function bumpabsorber_hookin__moderation_start() {
-	global $mybb, $lang, $db;
-
-	if ($mybb->get_input('action') == 'ba_toggle_own_thread_closed') {
-		$lang->load('moderation');
-		$lang->load('bumpabsorber');
-
-		$tid = $mybb->get_input('tid', MyBB::INPUT_INT);
-
-		if (!$tid || !($thread = get_thread($tid))) {
-			error($lang->error_invalidthread, $lang->error);
-		}
-		$fid = $thread['fid'];
-		if (!($mybb->settings['bumpabsorber_opclosable_forums'] == -1
-		      ||
-		      in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
-		     )
-		   ) {
-			error($lang->bmp_err_no_close_right_in_forum, $lang->error);
-		}
-		if ($mybb->user['uid'] != $thread['uid']) {
-			error($lang->bmp_err_no_close_right_not_author, $lang->error);
-		}
-
-		$modlogdata['tid'] = $tid;
-		$modlogdata['fid'] = $fid;
-
-		$moderation = new Moderation;
-		if ($thread['visible'] == -1) {
-			error($lang->error_thread_deleted, $lang->error);
-		}
-
-		if ($thread['closed'] == 1 && $thread['ba_closed_by_author'] == 1) {
-			$openclose = $lang->opened;
-			$redirect = $lang->redirect_openthread;
-			$moderation->open_threads($tid);
-		} else if ($thread['closed'] == 0) {
-			$openclose = $lang->closed;
-			$redirect = $lang->redirect_closethread;
-			$db->update_query('threads', array('closed' => 1, 'ba_closed_by_author' => 1), "tid='{$tid}'");
-		}
-		$lang->mod_process = $lang->sprintf($lang->mod_process, $openclose);
-
-		log_moderator_action($modlogdata, $lang->mod_process);
-
-		moderation_redirect(get_thread_link($thread['tid']), $redirect);
-	}
-}
-
 function ba_revert_patches() {
 	$ids = array_keys(c_ba_patches);
 	return ba_realise_or_revert_patches($ids, true);
@@ -565,10 +314,10 @@ function ba_realise_or_revert_patches($ids, $revert = false) {
 	$fpcfalse_files    = array();
 	$failedpatch_files = array();
 	foreach ($ids as $id) {
+		$entry = c_ba_patches[$id];
 		if (!file_exists(MYBB_ROOT.$entry['file'])) {
 			continue;
 		}
-		$entry = c_ba_patches[$id];
 		if (!is_writable(MYBB_ROOT.$entry['file'])) {
 			if (!in_array(MYBB_ROOT.$entry['file'], $unwritable_files)) {
 				$unwritable_files[] = $entry['file'];
@@ -616,56 +365,4 @@ function ba_get_missing_patch_ids() {
 	}
 
 	return $ret;
-}
-
-function ba_can_edit_thread($thread, $uid = -1) {
-	global $mybb;
-
-	if ($uid == -1) {
-		$uid = $mybb->user['uid'];
-	}
-
-	return $thread['ba_closed_by_author'] == 1 && $uid == $thread['uid'] && ($mybb->settings['bumpabsorber_opclosable_forums'] == -1 || in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_opclosable_forums'])));
-}
-
-function bumpabsorber_hookin__class_moderation_open_threads($tids) {
-	global $db;
-
-	$tid_list = implode(',', $tids);
-	$db->update_query('threads', array('ba_closed_by_author' => 0), "tid IN ($tid_list)");
-}
-
-function bumpabsorber_hookin__editpost_end() {
-	global $mybb, $lang, $templates, $thread, $modoptions, $fid, $bgcolor, $bgcolor2;
-
-	$modoptions = '';
-	if (($thread['closed'] == 0
-	     ||
-	     $thread['ba_closed_by_author'] == 1
-	    )
-	    &&
-	    $mybb->user['uid'] == $thread['uid']
-	    &&
-	    ($mybb->settings['bumpabsorber_opclosable_forums'] == -1
-	     ||
-	     in_array($fid, explode(',', $mybb->settings['bumpabsorber_opclosable_forums']))
-	    )
-	   ) {
-		$lang->load('newthread');
-
-		if (isset($mybb->input['previewpost'])) {
-			$modoptions = $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
-			if (isset($modoptions['closethread']) && $modoptions['closethread'] == 1) {
-				$closecheck = ' checked="checked"';
-			} else	$closecheck = '';
-		} else {
-			$closecheck = $thread['closed'] ? ' checked="checked"' : '';
-		}
-
-		eval('$closeoption = "'.$templates->get('newreply_modoptions_close').'";');
-		$stickoption = '';
-		eval('$modoptions = "'.$templates->get('newreply_modoptions').'";');
-		$bgcolor = 'trow1';
-		$bgcolor2 = 'trow2';
-	}
 }
