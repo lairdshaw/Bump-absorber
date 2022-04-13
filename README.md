@@ -16,7 +16,7 @@ Bump Absorber is a plugin for [MyBB](https://mybb.com/) 1.8. It inhibits thread 
 
 4. Install+activate the plugin via the ACP's _Plugins_ page.
 
-5. Configure the plugin in the ACP under _Settings_ -> _Plugin Settings_ -> _Bump Absorber_
+5. Configure the plugin in the ACP under _Settings_ -> _Plugin Settings_ -> _Bump Absorber_.
 
 ## Upgrading
 
@@ -25,6 +25,8 @@ Bump Absorber is a plugin for [MyBB](https://mybb.com/) 1.8. It inhibits thread 
 2. Download, extract, and copy files as in steps one, two, and three for installing above.
 
 3. Install+activate the plugin via the ACP.
+
+4. Re-configure the plugin in the ACP under _Settings_ -> _Plugin Settings_ -> _Bump Absorber_.
 
 ## Licence
 
