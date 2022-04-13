@@ -12,6 +12,9 @@ $l['bmp_setting_forums_desc' ] = 'Select the forums for which bump absorption sh
 $l['bmp_setting_bumpinterval_title'] = 'Bump interval (in hours)';
 $l['bmp_setting_bumpinterval_desc' ] = 'Set the number of hours that must elapse since the last bumping post to a thread in the enabled forums before a new reply by the thread\'s author will bump that thread.';
 
+$l['bmp_setting_showreallastpost_title'] = 'Show real last post in forum display?';
+$l['bmp_setting_showreallastpost_desc' ] = 'This toggle affects which post\'s author and date-time to show in the "Last Post" column of a forum listing page in a forum enabled in the setting above. Choose "No" to show the details of the last bumping post. Choose "Yes" to show the details of the actual last post even if it didn\'t bump the thread.';
+
 $l['bmp_all_patched'] = 'All necessary patches have automatically been applied to the following file(s) (where they actually exist): {1}. To auto-revert them, uninstall this plugin.';
 $l['bmp_unwritable' ] = 'The following file(s) is/are not writable by your web server, and patches could not be auto-applied to it/them: {1}. Please grant your web server write permissions on that/those file(s). ';
 $l['bmp_fpcfalse'   ] = 'Whilst the following files(s) seem(s) to be writable by your web server, a return of false was obtained when trying to save it/them: {1}. Please ensure that your web server can write to that/those file(s). ';

@@ -25,7 +25,10 @@ if (!defined('IN_MYBB')) {
 
 if (defined('IN_ADMINCP')) {
 	$plugins->add_hook('admin_tools_recount_rebuild_thread_counters', 'bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters');
-} else	$plugins->add_hook('datahandler_post_insert_post'      , 'bumpabsorber_hookin__datahandler_post_insert_post'              );
+} else {
+	$plugins->add_hook('datahandler_post_insert_post', 'bumpabsorber_hookin__datahandler_post_insert_post');
+	$plugins->add_hook('forumdisplay_thread_end'     , 'bumpabsorber_hookin__forumdisplay_thread_end'     );
+}
 
 const c_ba_patches = array(
 	array(
@@ -105,7 +108,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '2.0.0',
+		'version'       => '2.1.0',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -171,6 +174,12 @@ function bumpabsorber_install() {
 			'optionscode' => "numeric\nmin=1",
 			'value'       => '1'
 		),
+		'bumpabsorber_showreallastpost' => array(
+			'title'       => $lang->bmp_setting_showreallastpost_title,
+			'description' => $lang->bmp_setting_showreallastpost_desc,
+			'optionscode' => 'yesno',
+			'value'       => '0'
+		),
 	);
 
 	$disporder = 1;
@@ -234,6 +243,53 @@ function bumpabsorber_hookin__datahandler_post_insert_post($postHandler) {
 	global $g_ba_post_is_being_inserted;
 
 	$g_ba_post_is_being_inserted = true;
+}
+
+function bumpabsorber_hookin__forumdisplay_thread_end() {
+	global $mybb, $thread, $threadcache, $db, $lastpostdate, $lastposterlink;
+
+	if (($mybb->settings['bumpabsorber_forums'] == -1
+	     ||
+	     in_array($thread['fid'], explode(',', $mybb->settings['bumpabsorber_forums']))
+	    )
+	    &&
+	    $mybb->settings['bumpabsorber_showreallastpost'] == 1
+	) {
+		if (empty($thread['lastpostdate_real'])) {
+			$tids = array();
+			foreach ($threadcache as $idx => $thr) {
+				$tids[] = $idx;
+			}
+			$query = $db->query('
+SELECT     p1.tid,
+           p1.dateline AS lastpost,
+           p1.username AS lastposter,
+           p1.uid AS lastposteruid
+FROM       '.TABLE_PREFIX.'posts p1
+INNER JOIN (SELECT MAX(p2.pid) AS lastpid
+            FROM   '.TABLE_PREFIX.'posts p2
+            WHERE p2.tid IN ('.implode(',', $tids).')
+            GROUP BY p2.tid
+           ) innerqry
+ON         p1.pid = innerqry.lastpid');
+			while ($row = $db->fetch_array($query)) {
+				$thr =& $threadcache[$row['tid']];
+				if (!$row['lastposteruid'] && !$row['lastposter']) {
+					$lastposter_real = htmlspecialchars_uni($lang->guest);
+				} else	$lastposter_real = htmlspecialchars_uni($row['lastposter']);
+				if (empty($row['lastposteruid'])) {
+					$thr['lastposterlink_real'] = $lastposter_real;
+				} else	$thr['lastposterlink_real'] = build_profile_link($lastposter_real, $row['lastposteruid']);
+				$thr['lastpostdate_real'] = my_date('relative', $row['lastpost']);
+				unset($thr);
+			}
+		}
+		if (!empty($threadcache[$thread['tid']]['lastpostdate_real'])) {
+			$thr = $threadcache[$thread['tid']];
+			$lastpostdate   = $thr['lastpostdate_real'  ];
+			$lastposterlink = $thr['lastposterlink_real'];
+		}
+	}
 }
 
 function bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters($postHandler) {
