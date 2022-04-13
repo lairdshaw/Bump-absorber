@@ -108,7 +108,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw',
 		'authorsite'    => 'https://creativeandcritical.net/',
-		'version'       => '2.1.0',
+		'version'       => '2.1.1',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
@@ -255,7 +255,7 @@ function bumpabsorber_hookin__forumdisplay_thread_end() {
 	    &&
 	    $mybb->settings['bumpabsorber_showreallastpost'] == 1
 	) {
-		if (empty($thread['lastpostdate_real'])) {
+		if (empty($threadcache[$thread['tid']]['lastpostdate_real'])) {
 			$tids = array();
 			foreach ($threadcache as $idx => $thr) {
 				$tids[] = $idx;
