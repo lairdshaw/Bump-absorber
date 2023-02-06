@@ -106,8 +106,8 @@ function bumpabsorber_info() {
 	$info = array(
 		'name'          => $lang->bmp_name,
 		'description'   => $lang->bmp_desc,
-		'author'        => 'Laird Shaw',
-		'authorsite'    => 'https://creativeandcritical.net/',
+		'author'        => 'Laird Shaw as part of the unofficial MyBB Group',
+		'authorsite'    => 'https://mybb.group/',
 		'version'       => '2.1.1',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
