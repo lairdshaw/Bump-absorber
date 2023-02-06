@@ -118,7 +118,7 @@ function bumpabsorber_info() {
 	}
 	$active_plugins = $plugins_cache['active'];
 	$list_items = '';
-	if ($active_plugins && $active_plugins['bumpabsorber']) {
+	if ($active_plugins && !empty($active_plugins['bumpabsorber'])) {
 		list($unwritable_files, $fpcfalse_files, $failedpatch_files) = ba_realise_missing_patches();
 		if ($unwritable_files) {
 			$info['description'] .= '<ul><li style="list-style-image: url(styles/default/images/icons/warning.png)"><span style="color: red;">'.$lang->sprintf($lang->bmp_unwritable, implode($lang->comma, $unwritable_files)).'</span></li></ul>'.PHP_EOL;
