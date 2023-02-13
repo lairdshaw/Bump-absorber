@@ -116,7 +116,7 @@ function bumpabsorber_info() {
 	if (empty($plugins_cache) || !is_array($plugins_cache)) {
 		$plugins_cache = $cache->read('plugins');
 	}
-	$active_plugins = $plugins_cache['active'];
+	$active_plugins = !empty($plugins_cache['active']) ? $plugins_cache['active'] : [];
 	$list_items = '';
 	if ($active_plugins && !empty($active_plugins['bumpabsorber'])) {
 		list($unwritable_files, $fpcfalse_files, $failedpatch_files) = ba_realise_missing_patches();
