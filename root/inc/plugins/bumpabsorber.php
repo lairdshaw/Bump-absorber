@@ -27,7 +27,8 @@ if (defined('IN_ADMINCP')) {
 	$plugins->add_hook('admin_tools_recount_rebuild_thread_counters', 'bumpabsorber_hookin__admin_tools_recount_rebuild_thread_counters');
 } else {
 	$plugins->add_hook('datahandler_post_insert_post', 'bumpabsorber_hookin__datahandler_post_insert_post');
-	$plugins->add_hook('forumdisplay_thread_end'     , 'bumpabsorber_hookin__forumdisplay_thread_end'     );
+	$plugins->add_hook('forumdisplay_thread_end'     , 'bumpabsorber_hookin__forumdisplay_thread_end__and__search_results_thread');
+	$plugins->add_hook('search_results_thread'       , 'bumpabsorber_hookin__forumdisplay_thread_end__and__search_results_thread');
 }
 
 const c_ba_patches = array(
@@ -245,8 +246,8 @@ function bumpabsorber_hookin__datahandler_post_insert_post($postHandler) {
 	$g_ba_post_is_being_inserted = true;
 }
 
-function bumpabsorber_hookin__forumdisplay_thread_end() {
-	global $mybb, $thread, $threadcache, $db, $lastpostdate, $lastposterlink;
+function bumpabsorber_hookin__forumdisplay_thread_end__and__search_results_thread() {
+	global $mybb, $thread, $threadcache, $thread_cache, $db, $lastpostdate, $lastposterlink;
 
 	if (($mybb->settings['bumpabsorber_forums'] == -1
 	     ||
@@ -255,6 +256,10 @@ function bumpabsorber_hookin__forumdisplay_thread_end() {
 	    &&
 	    $mybb->settings['bumpabsorber_showreallastpost'] == 1
 	) {
+		// The search page uses a different variable name than the forum display page uses.
+		if (empty($threadcache)) {
+			$threadcache = $thread_cache;
+		}
 		if (empty($threadcache[$thread['tid']]['lastpostdate_real'])) {
 			$tids = array();
 			foreach ($threadcache as $idx => $thr) {
