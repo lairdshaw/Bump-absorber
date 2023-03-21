@@ -109,7 +109,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw as part of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/',
-		'version'       => '2.1.1',
+		'version'       => '2.1.2-prerelease',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
