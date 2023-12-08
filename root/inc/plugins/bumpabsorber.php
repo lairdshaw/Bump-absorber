@@ -2,7 +2,7 @@
 
 /*
  * Bump Absorber, a plugin for MyBB 1.8.x.
- * Copyright (C) 2021-2022 Laird Shaw.
+ * Copyright (C) 2021-2023 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ function bumpabsorber_info() {
 		'description'   => $lang->bmp_desc,
 		'author'        => 'Laird Shaw as part of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/',
-		'version'       => '2.1.2-prerelease',
+		'version'       => '2.1.2',
 		'codename'      => 'bumpabsorber',
 		'compatibility' => '18*'
 	);
